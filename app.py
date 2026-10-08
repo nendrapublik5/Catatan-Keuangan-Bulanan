@@ -10,15 +10,14 @@ from PIL import Image
 # ----------------- KONFIGURASI HALAMAN -----------------
 st.set_page_config(page_title="家計簿 (Kakeibo) - Finance Tracker", page_icon="💴", layout="wide")
 
-# Banner Estetika Nuansa Jepang
+# Banner Estetika Bernuansa Jepang (Gunung Fuji & Sakura via Wikimedia Commons)
 st.image(
-    "https://images.unsplash.com/photo-1528164344705-475426879c0d?auto=format&fit=crop&w=1200&q=80",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/6/63/Mount_Fuji_from_Lake_Kawaguchiko_with_cherry_blossoms.jpg/1280px-Mount_Fuji_from_Lake_Kawaguchiko_with_cherry_blossoms.jpg",
     caption="🇯🇵 家計簿 (Kakeibo) — Kelola Finansial Terencana & Bijak",
     use_container_width=True
 )
 
 # ----------------- OTOMATISASI GEMINI API KEY -----------------
-# Kunci otomatis: Mengambil dari Secrets jika ada, atau fallback langsung ke kunci Anda
 DEFAULT_GEMINI_KEY = "AQ.Ab8RN6JlJwkZ6CBKOshdMd7U0sEYcBWC_7dSF4_PuPPRihyQgg"
 
 active_api_key = None
@@ -182,8 +181,26 @@ with tab_scan:
                 Pastikan total_price adalah harga final netto setelah diskon dan pajak. Gunakan tanggal pada struk belanja jika terlihat jelas.
                 """
                 
-                # Multi-model fallback untuk mencegah NotFound 404
-                model_candidates = ["gemini-1.5-flash", "models/gemini-1.5-flash", "gemini-2.0-flash"]
+                # Cari daftar model yang benar-benar aktif di akun
+                detected_models = []
+                try:
+                    for m in genai.list_models():
+                        if "generateContent" in m.supported_generation_methods:
+                            detected_models.append(m.name)
+                except Exception:
+                    pass
+                
+                # Prioritaskan gemini-3.8-flash sesuai instruksi resmi Google
+                primary_candidates = [
+                    "gemini-3.8-flash",
+                    "models/gemini-3.8-flash",
+                    "gemini-2.5-flash",
+                    "models/gemini-2.5-flash"
+                ]
+                
+                # Urutkan prioritas kandidat lalu tambahkan model terdeteksi lainnya
+                model_candidates = list(dict.fromkeys(primary_candidates + detected_models))
+                
                 response = None
                 error_trace = ""
                 
