@@ -8,12 +8,12 @@ import google.generativeai as genai
 from PIL import Image
 
 # ----------------- KONFIGURASI HALAMAN -----------------
-st.set_page_config(page_title="家計簿 (Kakeibo) - Finance Tracker", page_icon="💴", layout="wide")
+st.set_page_config(page_title="Publik Family - Finance Tracker", page_icon="💴", layout="wide")
 
 # Banner Estetika Bernuansa Jepang (Gunung Fuji & Sakura via Wikimedia Commons)
 st.image(
-    "https://upload.wikimedia.org/wikipedia/commons/thumb/6/63/Mount_Fuji_from_Lake_Kawaguchiko_with_cherry_blossoms.jpg/1280px-Mount_Fuji_from_Lake_Kawaguchiko_with_cherry_blossoms.jpg",
-    caption="🇯🇵 家計簿 (Kakeibo) — Kelola Finansial Terencana & Bijak",
+    "eren.gif",
+    caption="🕊️ 自由",
     use_container_width=True
 )
 
