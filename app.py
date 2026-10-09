@@ -4,6 +4,7 @@ import pandas as pd
 from datetime import datetime
 import json
 import re
+import os
 import google.generativeai as genai
 from PIL import Image
 
@@ -107,7 +108,7 @@ if st.sidebar.button("💾 Simpan Data Pemasukan & Target"):
 
 st.sidebar.markdown("---")
 with st.sidebar.expander("🔑 Info Gemini API (Aktif)", expanded=False):
-    st.caption("Kunci AI terpasang otomatis. Anda bisa menggantinya jika diinginkan:")
+    st.caption("Kunci AI terpasang otomatis:")
     custom_key = st.text_input("Ganti API Key baru:", type="password", value="")
     if custom_key:
         active_api_key = custom_key
@@ -181,7 +182,7 @@ with tab_scan:
                 Pastikan total_price adalah harga final netto setelah diskon dan pajak. Gunakan tanggal pada struk belanja jika terlihat jelas.
                 """
                 
-                # Cari daftar model yang benar-benar aktif di akun
+                # Prioritaskan model gemini-3.8-flash
                 detected_models = []
                 try:
                     for m in genai.list_models():
@@ -190,15 +191,12 @@ with tab_scan:
                 except Exception:
                     pass
                 
-                # Prioritaskan gemini-3.8-flash sesuai instruksi resmi Google
                 primary_candidates = [
                     "gemini-3.8-flash",
                     "models/gemini-3.8-flash",
                     "gemini-2.5-flash",
                     "models/gemini-2.5-flash"
                 ]
-                
-                # Urutkan prioritas kandidat lalu tambahkan model terdeteksi lainnya
                 model_candidates = list(dict.fromkeys(primary_candidates + detected_models))
                 
                 response = None
@@ -273,6 +271,7 @@ with tab_manual:
 with tab_data:
     st.subheader(f"Arsip Transaksi Bulan {selected_month}")
     if not df_month.empty:
+        # Grafik Distribusi
         g_col1, g_col2 = st.columns(2)
         cat_agg = df_month.groupby("category")["total_price"].sum().reset_index()
         g_col1.write("Pengeluaran per Kategori:")
@@ -282,11 +281,46 @@ with tab_data:
         g_col2.write("Pengeluaran per Merchant / Toko:")
         g_col2.bar_chart(store_agg, x="store", y="total_price")
         
+        # Tabel Transaksi
+        st.markdown("#### 📋 Rincian Tabel Transaksi")
         st.dataframe(
             df_month[["id", "date", "store", "category", "item_name", "qty", "unit", "unit_price", "total_price", "payment_method", "notes"]],
             use_container_width=True
         )
         
+        # ----------------- FITUR HAPUS TRANSAKSI -----------------
+        st.markdown("---")
+        st.markdown("#### 🗑️ Hapus Baris Transaksi (Koreksi / Salah Input)")
+        st.caption("Pilih baris transaksi yang salah di bawah ini, lalu klik tombol **Hapus Baris Terpilih**:")
+        
+        tx_options = {
+            int(row['id']): f"ID {row['id']} | {row['date']} | {row['store']} - {row['item_name']} (¥{row['total_price']:,.0f})"
+            for _, row in df_month.iterrows()
+        }
+        
+        del_col1, del_col2 = st.columns([3, 1])
+        with del_col1:
+            selected_to_delete = st.multiselect(
+                "Pilih transaksi yang ingin dihapus:",
+                options=list(tx_options.keys()),
+                format_func=lambda x: tx_options[x],
+                placeholder="Pilih baris transaksi...",
+                label_visibility="collapsed"
+            )
+        with del_col2:
+            btn_delete = st.button("🗑️ Hapus Baris Terpilih", type="primary", use_container_width=True)
+            
+        if btn_delete:
+            if selected_to_delete:
+                cursor.executemany("DELETE FROM transactions WHERE id = ?", [(tid,) for tid in selected_to_delete])
+                conn.commit()
+                st.success(f"✅ Berhasil menghapus {len(selected_to_delete)} baris data!")
+                st.rerun()
+            else:
+                st.warning("⚠️ Pilih minimal satu transaksi yang ingin dihapus terlebih dahulu.")
+        
+        # ----------------- EKSPOR LAPORAN CSV -----------------
+        st.markdown("---")
         csv_bytes = df_month.drop(columns=["id", "month_period"]).to_csv(index=False).encode('utf-8')
         st.download_button(
             "📥 Unduh Laporan (.csv)",
